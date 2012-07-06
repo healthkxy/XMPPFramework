@@ -2,6 +2,7 @@
 #import <CoreData/CoreData.h>
 
 #import "XMPPFramework.h"
+#import "XMPPTransportProtocol.h"
 
 @class SettingsViewController;
 
@@ -18,6 +19,8 @@
 	XMPPCapabilities *xmppCapabilities;
 	XMPPCapabilitiesCoreDataStorage *xmppCapabilitiesStorage;
 	
+    id<XMPPTransportProtocol> transport;
+    
 	NSString *password;
 	
 	BOOL allowSelfSignedCertificates;

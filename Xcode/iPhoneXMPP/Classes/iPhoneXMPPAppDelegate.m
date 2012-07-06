@@ -1,6 +1,9 @@
 #import "iPhoneXMPPAppDelegate.h"
 #import "RootViewController.h"
 #import "SettingsViewController.h"
+#import "XMPPTransportProtocol.h"
+#import "XMPPSocketTransport.h"
+#import "BoshTransport.h"
 
 #import "GCDAsyncSocket.h"
 #import "XMPP.h"
@@ -14,6 +17,7 @@
 #import "DDTTYLogger.h"
 
 #import <CFNetwork/CFNetwork.h>
+
 
 // Log levels: off, error, warn, info, verbose
 #if DEBUG
@@ -111,7 +115,12 @@
 	// 
 	// The XMPPStream is the base class for all activity.
 	// Everything else plugs into the xmppStream, such as modules/extensions and delegates.
+	transport = [[BoshTransport alloc] initWithUrl:
+                    [NSURL URLWithString:@"http://www.24btc.com/http-bind"] 
+                                         forDomain:@"gmail.com"];
 
+    [transport addDelegate:self];
+    
 	xmppStream = [[XMPPStream alloc] init];
 	
 	#if !TARGET_IPHONE_SIMULATOR
@@ -363,6 +372,54 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark XMPPStream Delegate
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+- (void)transport:(XMPPSocketTransport *)sender willSecureWithSettings:(NSMutableDictionary *)settings
+{
+	NSLog(@"---------- xmppStream:willSecureWithSettings: ----------");
+	
+	if (allowSelfSignedCertificates)
+	{
+		[settings setObject:[NSNumber numberWithBool:YES] forKey:(NSString *)kCFStreamSSLAllowsAnyRoot];
+	}
+	
+	if (allowSSLHostNameMismatch)
+	{
+		[settings setObject:[NSNull null] forKey:(NSString *)kCFStreamSSLPeerName];
+	}
+	else
+	{
+		// Google does things incorrectly (does not conform to RFC).
+		// Because so many people ask questions about this (assume xmpp framework is broken),
+		// I've explicitly added code that shows how other xmpp clients "do the right thing"
+		// when connecting to a google server (gmail, or google apps for domains).
+		
+		NSString *expectedCertName = nil;
+		
+		NSString *serverDomain = @"saf";
+		NSString *virtualDomain = [transport.myJID domain];
+		
+		if ([serverDomain hasPrefix:@"talk"] && [serverDomain hasSuffix:@"google.com"])
+		{
+			if ([virtualDomain isEqualToString:@"gmail.com"])
+			{
+				expectedCertName = virtualDomain;
+			}
+			else
+			{
+				expectedCertName = serverDomain;
+			}
+		}
+        else if (serverDomain == nil) {
+            expectedCertName = virtualDomain;
+        }
+		else
+		{
+			expectedCertName = serverDomain;
+		}
+		
+		[settings setObject:expectedCertName forKey:(NSString *)kCFStreamSSLPeerName];
+	}
+}
 
 - (void)xmppStream:(XMPPStream *)sender socketDidConnect:(GCDAsyncSocket *)socket 
 {
