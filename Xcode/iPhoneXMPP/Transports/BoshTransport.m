@@ -11,6 +11,7 @@
 #import "NSXMLElement+XMPP.h"
 #import "DDLog.h"
 #import "ASIHTTPRequest.h"
+#import "GCDMulticastDelegate.h"
 
 NSString *const BOSHParsingErrorDomain = @"BOSHParsingErrorDomain";
 
@@ -455,13 +456,24 @@ static const NSString *XMPP_NS = @"urn:xmpp:xbosh";
 
 - (void)addDelegate:(id)delegate
 {
-    [multicastDelegate addDelegate:delegate];
+    //[multicastDelegate addDelegate:delegate delegateQueue:queue];
 }
 
 - (void)removeDelegate:(id)delegate
 {
-    [multicastDelegate removeDelegate:delegate];
+    //[multicastDelegate removeDelegate:delegate delegateQueue:queue];
 }
+
+- (void)aDelegate:(id)delegate queue:(dispatch_queue_t)queue
+{
+    [multicastDelegate addDelegate:delegate delegateQueue:queue];
+}
+
+- (void)rDelegate:(id)delegate queue:(dispatch_queue_t)queue
+{
+    [multicastDelegate removeDelegate:delegate delegateQueue:queue];
+}
+
 
 #pragma mark -
 #pragma mark BOSH

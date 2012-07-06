@@ -121,7 +121,7 @@
 
     [transport addDelegate:self];
     
-	xmppStream = [[XMPPStream alloc] init];
+	xmppStream = [[XMPPStream alloc] initWithTransport:transport];
 	
 	#if !TARGET_IPHONE_SIMULATOR
 	{
@@ -299,8 +299,8 @@
 	// If you don't want to use the Settings view to set the JID, 
 	// uncomment the section below to hard code a JID and password.
 	// 
-	// myJID = @"user@gmail.com/xmppframework";
-	// myPassword = @"";
+	myJID = @"iphoneforjapan@gmail.com/xmppframework";
+	myPassword = @"xykangxy78";
 	
 	if (myJID == nil || myPassword == nil) {
 		return NO;
@@ -310,7 +310,7 @@
 	password = myPassword;
 
 	NSError *error = nil;
-	if (![xmppStream connect:&error])
+	if (![xmppStream connectBosh:&error])
 	{
 		UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"Error connecting" 
 		                                                    message:@"See console for error details." 

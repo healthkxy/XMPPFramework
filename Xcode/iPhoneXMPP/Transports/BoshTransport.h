@@ -55,7 +55,7 @@ typedef enum {
 @property (nonatomic, retain) NSXMLElement *request;
 @property (nonatomic, retain) NSXMLElement *response;
 - (id)initWithRequest:(NSXMLElement *)request response:(NSXMLElement *)response;
-- (void)dealloc;
+//- (void)dealloc;
 @end
 
 #pragma mark -
@@ -77,7 +77,7 @@ typedef enum {
 - (void)receivedResponseForRid:(long long)rid;
 - (BOOL)isWindowFull;
 - (BOOL)isWindowEmpty;
-- (void)dealloc;
+//- (void)dealloc;
 @end
 
 
@@ -150,6 +150,10 @@ typedef enum {
 - (BOOL)isConnected;
 - (void)addDelegate:(id)delegate;
 - (void)removeDelegate:(id)delegate;
+
+- (void)aDelegate:(id)delegate queue:(dispatch_queue_t)queue;
+- (void)rDelegate:(id)delegate queue:(dispatch_queue_t)queue;
+
 - (XMPPJID *)myJID;
 - (void)setMyJID:(XMPPJID *)jid;
 - (BOOL)connect:(NSError **)errPtr;

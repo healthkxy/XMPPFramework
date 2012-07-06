@@ -2,7 +2,7 @@
 #import "XMPPSASLAuthentication.h"
 #import "GCDAsyncSocket.h"
 #import "GCDMulticastDelegate.h"
-
+#import "XMPPTransportProtocol.h"
 #if TARGET_OS_IPHONE
   #import "DDXML.h"
 #endif
@@ -27,6 +27,21 @@
 
 extern NSString *const XMPPStreamErrorDomain;
 
+// Define the various states we'll use to track our progress
+enum {
+	STATE_DISCONNECTED,
+	STATE_OPENING,
+	STATE_NEGOTIATING,
+	STATE_STARTTLS,
+	STATE_REGISTERING,
+	STATE_AUTH_1,
+	STATE_AUTH_2,
+	STATE_AUTH_3,
+	STATE_BINDING,
+	STATE_START_SESSION,
+	STATE_CONNECTED,
+};
+
 enum XMPPStreamErrorCode
 {
 	XMPPStreamInvalidType,       // Attempting to access P2P methods in a non-P2P stream, or vice-versa
@@ -38,13 +53,13 @@ enum XMPPStreamErrorCode
 typedef enum XMPPStreamErrorCode XMPPStreamErrorCode;
 
 
-@interface XMPPStream : NSObject <GCDAsyncSocketDelegate>
+@interface XMPPStream : NSObject <GCDAsyncSocketDelegate,XMPPTransportDelegate>
 {
 	dispatch_queue_t xmppQueue;
 	dispatch_queue_t parserQueue;
 	
 	GCDMulticastDelegate <XMPPStreamDelegate> *multicastDelegate;
-	
+	id<XMPPTransportProtocol> transport;
 	int state;
 	
 	GCDAsyncSocket *asyncSocket;
@@ -99,7 +114,7 @@ typedef enum XMPPStreamErrorCode XMPPStreamErrorCode;
  * See the P2P section below.
 **/
 - (id)init;
-
+- (id)initWithTransport:(id<XMPPTransportProtocol>)transport;
 /**
  * Peer to Peer XMPP initialization.
  * The stream is a direct client to client connection as outlined in XEP-0174.
@@ -298,7 +313,7 @@ typedef enum XMPPStreamErrorCode XMPPStreamErrorCode;
  * If the hostName or myJID are not set, this method will return NO and set the error parameter.
 **/
 - (BOOL)connect:(NSError **)errPtr;
-
+- (BOOL)connectBosh:(NSError **)errPtr;
 /**
  * THIS IS DEPRECATED BY THE XMPP SPECIFICATION.
  * 
