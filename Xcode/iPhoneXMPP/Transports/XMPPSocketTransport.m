@@ -8,15 +8,15 @@
 
 #import "XMPPSocketTransport.h"
 #import "GCDMulticastDelegate.h"
-#import "GCDAsyncSocket.h"
+#import "AsyncSocket.h"
 #import "XMPPParser.h"
 #import "NSXMLElement+XMPP.h"
 #import "XMPPJID.h"
-#import "XMPPSRVResolver.h"
+#import "RFSRVResolver.h"
 
 @interface XMPPSocketTransport ()
-@property (nonatomic, readwrite, strong) NSString *host;
-@property (nonatomic, readwrite, assign) UInt16 port;
+@property (readwrite, copy) NSString *host;
+@property (readwrite, assign) UInt16 port;
 - (BOOL)sendString:(NSString *)string;
 - (void)sendOpeningNegotiation;
 @end
@@ -66,12 +66,12 @@
     return self;
 }
 
-- (id)initP2PWithSocket:(GCDAsyncSocket *)socket
+- (id)initP2PWithSocket:(AsyncSocket *)socket
 {
     self = [self init];
     if (self)
     {
-        asyncSocket = socket;
+        asyncSocket = [socket retain];
         [asyncSocket setDelegate:self];
         state = XMPP_SOCKET_OPENING;
         isP2P = YES;
@@ -80,15 +80,19 @@
     return self;
 }
 
-
-- (NSXMLElement *)parseXMLString:(NSString *)xml
+- (void)dealloc
 {
-    NSXMLDocument *doc = [[NSXMLDocument alloc] initWithXMLString:xml
-                                                           options:0
-                                                             error:NULL];
-    NSXMLElement *element = [doc rootElement];
-    [element detach];
-    return element;
+    [multicastDelegate release];
+    [asyncSocket release];
+    [parser release];
+    [host release];
+    [rootElement release];
+    [remoteJID release];
+    [srvResolver release];
+    [srvResults release];
+    [keepAliveTimer invalidate];
+	[keepAliveTimer release];
+    [super dealloc];
 }
 
 - (void)addDelegate:(id)delegate
@@ -112,15 +116,14 @@
     else if ([host length] == 0)
     {
         state = XMPP_SOCKET_RESOLVING_SRV;
-        //srvResolver = [XMPPSRVResolver resolveWithTransport:self delegate:self];
+        [srvResolver release];
+        srvResolver = [[RFSRVResolver resolveWithTransport:self delegate:self] retain];
         return YES;
     }
     else
     {
         state = XMPP_SOCKET_OPENING;
-        //asyncSocket = [[GCDAsyncSocket alloc] initWithDelegate:self];
-        asyncSocket = [GCDAsyncSocket new];
-        asyncSocket.delegate = self;
+        asyncSocket = [[AsyncSocket alloc] initWithDelegate:self];
         return [asyncSocket connectToHost:host onPort:port error:errPtr];
     }
 }
@@ -155,15 +158,12 @@
 
 - (BOOL)sendStanzaWithString:(NSString *)string
 {
-    return [self sendStanza:[self parseXMLString:string]];
+    return [self sendString:string];
 }
 
 - (BOOL)sendStanza:(NSXMLElement *)stanza
 {
-    [multicastDelegate transport:self willSendStanza:stanza];
-    BOOL sent = [self sendString:[stanza compactXMLString]];
-    [multicastDelegate transport:self didSendStanza:stanza];
-    return sent;
+    return [self sendStanzaWithString:[stanza compactXMLString]];
 }
 
 /**
@@ -217,6 +217,7 @@
 		
 		// Since we're restarting the XML stream, we need to reset the parser.
 		//[parser stop];
+		[parser release];
 		
 		parser = [(XMPPParser *)[XMPPParser alloc] initWithDelegate:self];
 	}
@@ -300,18 +301,18 @@
 - (void)setupKeepAliveTimer
 {
 	[keepAliveTimer invalidate];
-	//[keepAliveTimer release];
+	[keepAliveTimer release];
 	keepAliveTimer = nil;
 	
 	if (state == XMPP_SOCKET_CONNECTED)
 	{
 		if (keepAliveInterval > 0)
 		{
-			keepAliveTimer = [NSTimer scheduledTimerWithTimeInterval:keepAliveInterval
+			keepAliveTimer = [[NSTimer scheduledTimerWithTimeInterval:keepAliveInterval
 															   target:self
 															 selector:@selector(keepAlive:)
 															 userInfo:nil
-															  repeats:YES];
+															  repeats:YES] retain];
 		}
 	}
 }
@@ -337,13 +338,13 @@
 //////////////////////////////////
 #pragma mark AsyncSocket Delegate
 //////////////////////////////////
-- (BOOL)onSocketWillConnect:(GCDAsyncSocket *)socket
+- (BOOL)onSocketWillConnect:(AsyncSocket *)socket
 {
     [multicastDelegate transportWillConnect:self];
     return YES;
 }
 
-- (void)onSocket:(GCDAsyncSocket *)socket didConnectToHost:(NSString *)givenHost port:(UInt16)givenPort
+- (void)onSocket:(AsyncSocket *)socket didConnectToHost:(NSString *)givenHost port:(UInt16)givenPort
 {
     [self sendOpeningNegotiation];
     [multicastDelegate transportDidStartNegotiation:self];
@@ -354,31 +355,31 @@
 /**
  * Called when a socket has completed reading the requested data. Not called if there is an error.
  **/
-- (void)onSocket:(GCDAsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag
+- (void)onSocket:(AsyncSocket *)sock didReadData:(NSData *)data withTag:(long)tag
 {
 	if (DEBUG_RECV_PRE)
 	{
 		NSString *dataAsStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
 		DDLogRecvPre(@"RECV RAW: %@", dataAsStr);
-		//[dataAsStr release];
+		[dataAsStr release];
 	}
 
 	numberOfBytesReceived += [data length];
 	[parser parseData:data];
 }
 
-- (void)onSocketDidSecure:(GCDAsyncSocket *)sock
+- (void)onSocketDidSecure:(AsyncSocket *)sock
 {
     isSecure = YES;
     [multicastDelegate transportDidSecure:self];
 }
 
-- (void)onSocket:(GCDAsyncSocket *)sock willDisconnectWithError:(NSError *)err
+- (void)onSocket:(AsyncSocket *)sock willDisconnectWithError:(NSError *)err
 {
     [multicastDelegate transportWillDisconnect:self withError:err];
 }
 
-- (void)onSocketDidDisconnect:(GCDAsyncSocket *)sock
+- (void)onSocketDidDisconnect:(AsyncSocket *)sock
 {
     [multicastDelegate transportDidDisconnect:self];
 }
@@ -419,8 +420,8 @@
 	// We save the root element of our stream for future reference.
 	// Digest Access authentication requires us to know the ID attribute from the <stream:stream/> element.
 
-    //[rootElement release];
-    rootElement = root;
+    [rootElement release];
+    rootElement = [root retain];
     state = XMPP_SOCKET_CONNECTED;
     [self setupKeepAliveTimer];
     [multicastDelegate transportDidConnect:self];
@@ -443,7 +444,7 @@
 	
 	while (srvResultsIndex < [srvResults count])
 	{
-		XMPPSRVRecord *srvRecord = [srvResults objectAtIndex:srvResultsIndex];
+		RFSRVRecord *srvRecord = [srvResults objectAtIndex:srvResultsIndex];
 		self.host = srvRecord.target;
 		self.port = srvRecord.port;
 
@@ -485,23 +486,19 @@
 	}
 }
 
-- (void)srvResolverDidResoveSRV:(XMPPSRVResolver *)sender
+- (void)srvResolverDidResoveSRV:(RFSRVResolver *)sender
 {
-	//srvResults = [[sender results] copy];
+	srvResults = [[sender results] copy];
 	srvResultsIndex = 0;
 	
 	[self tryNextSrvResult];
 }
 
-- (void)srvResolver:(XMPPSRVResolver *)sender didNotResolveSRVWithError:(NSError *)srvError
+- (void)srvResolver:(RFSRVResolver *)sender didNotResolveSRVWithError:(NSError *)srvError
 {
     //DDLogError(@"%s %@",__PRETTY_FUNCTION__,srvError);
     
 	[self tryNextSrvResult];
-}
-
-- (BOOL)supportsPause {
-  return NO;
 }
 
 @end

@@ -14,10 +14,19 @@
     #import "DDXML.h"
 #endif
 
-@class GCDAsyncSocket;
+@class AsyncSocket;
 @class XMPPParser;
 @class XMPPJID;
-@class XMPPSRVResolver;
+@class RFSRVResolver;
+
+// Define the debugging state
+//#define DEBUG_SEND      YES
+#define DEBUG_RECV_PRE  NO  // Prints data before going to xmpp parser
+//#define DEBUG_RECV_POST YES   // Prints data as it comes out of xmpp parser
+
+#define DDLogSend(format, ...)     do{ if(DEBUG_SEND)      NSLog((format), ##__VA_ARGS__); }while(0)
+#define DDLogRecvPre(format, ...)  do{ if(DEBUG_RECV_PRE)  NSLog((format), ##__VA_ARGS__); }while(0)
+#define DDLogRecvPost(format, ...) do{ if(DEBUG_RECV_POST) NSLog((format), ##__VA_ARGS__); }while(0)
 
 // Define the various timeouts (in seconds) for retreiving various parts of the XML stream
 #define TIMEOUT_WRITE         10
@@ -50,7 +59,7 @@ enum xmppSocketState {
 
 @interface XMPPSocketTransport : NSObject <XMPPTransportProtocol> {
     id multicastDelegate;
-    GCDAsyncSocket *asyncSocket;
+    AsyncSocket *asyncSocket;
     XMPPParser *parser;
     
     enum xmppSocketState state;
@@ -75,19 +84,19 @@ enum xmppSocketState {
     XMPPJID *remoteJID;
     
     // SRV resolver
-    XMPPSRVResolver *srvResolver;
+    RFSRVResolver *srvResolver;
 	NSArray *srvResults;
 	NSUInteger srvResultsIndex;
 }
-@property (nonatomic, readonly, strong) NSString *host;
-@property (nonatomic, strong) XMPPJID *myJID;
-@property (nonatomic, strong) XMPPJID *remoteJID;
-@property (nonatomic, readonly) BOOL isP2PRecipient;
+@property (readonly, copy) NSString *host;
+@property (retain) XMPPJID *myJID;
+@property (retain) XMPPJID *remoteJID;
+@property (readonly) BOOL isP2PRecipient;
 
 - (id)init;
 - (id)initWithHost:(NSString *)host port:(UInt16)port;
 - (id)initP2PWithHost:(NSString *)host port:(UInt16)port;
-- (id)initP2PWithSocket:(GCDAsyncSocket *)socket;
+- (id)initP2PWithSocket:(AsyncSocket *)socket;
 
 - (void)addDelegate:(id)delegate;
 - (void)removeDelegate:(id)delegate;

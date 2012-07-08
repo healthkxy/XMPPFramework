@@ -3,13 +3,14 @@
 
 #import "XMPPFramework.h"
 #import "XMPPTransportProtocol.h"
+#import "XMPPBoshStream.h"
 
 @class SettingsViewController;
 
 
-@interface iPhoneXMPPAppDelegate : NSObject <UIApplicationDelegate, XMPPRosterDelegate>
+@interface iPhoneXMPPAppDelegate : NSObject <UIApplicationDelegate, XMPPRosterDelegate, XMPPBoshStreamDelegate>
 {
-	XMPPStream *xmppStream;
+	XMPPBoshStream *xmppStream;
 	XMPPReconnect *xmppReconnect;
     XMPPRoster *xmppRoster;
 	XMPPRosterCoreDataStorage *xmppRosterStorage;
@@ -34,7 +35,7 @@
     UIBarButtonItem *loginButton;
 }
 
-@property (nonatomic, strong, readonly) XMPPStream *xmppStream;
+@property (nonatomic, strong, readonly) XMPPBoshStream *xmppStream;
 @property (nonatomic, strong, readonly) XMPPReconnect *xmppReconnect;
 @property (nonatomic, strong, readonly) XMPPRoster *xmppRoster;
 @property (nonatomic, strong, readonly) XMPPRosterCoreDataStorage *xmppRosterStorage;
