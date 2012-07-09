@@ -42,8 +42,12 @@
 		28AD73600D9D9599002E5188 /* MainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 28AD735F0D9D9599002E5188 /* MainWindow.xib */; };
 		28C286E10D94DF7D0034E888 /* RootViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 28C286E00D94DF7D0034E888 /* RootViewController.m */; };
 		28F335F11007B36200424DE2 /* RootViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 28F335F01007B36200424DE2 /* RootViewController.xib */; };
-		7CAFACFC15A5CFE000143A46 /* BoshTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = 7CAFACF915A5CFE000143A46 /* BoshTransport.m */; };
-		7CAFACFD15A5CFE000143A46 /* XMPPSocketTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = 7CAFACFB15A5CFE000143A46 /* XMPPSocketTransport.m */; };
+		7C03435615A83944008ED1E5 /* AsyncSocket.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C03434D15A83944008ED1E5 /* AsyncSocket.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
+		7C03435715A83944008ED1E5 /* BoshTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C03434F15A83944008ED1E5 /* BoshTransport.m */; };
+		7C03435915A83944008ED1E5 /* XMPPBoshStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C03435315A83944008ED1E5 /* XMPPBoshStream.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
+		7C03435A15A83944008ED1E5 /* XMPPSocketTransport.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C03435515A83944008ED1E5 /* XMPPSocketTransport.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
+		7C03435D15A83AF8008ED1E5 /* RFSRVResolver.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C03435C15A83AF8008ED1E5 /* RFSRVResolver.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
+		7C03441115A988C4008ED1E5 /* ConnectionBosh.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C03441015A988C4008ED1E5 /* ConnectionBosh.m */; };
 		7CAFAD1815A5D8F400143A46 /* ASIAuthenticationDialog.m in Sources */ = {isa = PBXBuildFile; fileRef = 7CAFAD0215A5D8F400143A46 /* ASIAuthenticationDialog.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 		7CAFAD1915A5D8F400143A46 /* ASIDataCompressor.m in Sources */ = {isa = PBXBuildFile; fileRef = 7CAFAD0515A5D8F400143A46 /* ASIDataCompressor.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 		7CAFAD1A15A5D8F400143A46 /* ASIDataDecompressor.m in Sources */ = {isa = PBXBuildFile; fileRef = 7CAFAD0715A5D8F400143A46 /* ASIDataDecompressor.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
@@ -178,10 +182,18 @@
 		28C286E00D94DF7D0034E888 /* RootViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; lineEnding = 0; path = RootViewController.m; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objc; };
 		28F335F01007B36200424DE2 /* RootViewController.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = RootViewController.xib; sourceTree = "<group>"; };
 		29B97316FDCFA39411CA2CEA /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		7CAFACF815A5CFE000143A46 /* BoshTransport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BoshTransport.h; sourceTree = "<group>"; };
-		7CAFACF915A5CFE000143A46 /* BoshTransport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BoshTransport.m; sourceTree = "<group>"; };
-		7CAFACFA15A5CFE000143A46 /* XMPPSocketTransport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XMPPSocketTransport.h; sourceTree = "<group>"; };
-		7CAFACFB15A5CFE000143A46 /* XMPPSocketTransport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XMPPSocketTransport.m; sourceTree = "<group>"; };
+		7C03434C15A83944008ED1E5 /* AsyncSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AsyncSocket.h; sourceTree = "<group>"; };
+		7C03434D15A83944008ED1E5 /* AsyncSocket.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AsyncSocket.m; sourceTree = "<group>"; };
+		7C03434E15A83944008ED1E5 /* BoshTransport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BoshTransport.h; sourceTree = "<group>"; };
+		7C03434F15A83944008ED1E5 /* BoshTransport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BoshTransport.m; sourceTree = "<group>"; };
+		7C03435215A83944008ED1E5 /* XMPPBoshStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XMPPBoshStream.h; sourceTree = "<group>"; };
+		7C03435315A83944008ED1E5 /* XMPPBoshStream.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XMPPBoshStream.m; sourceTree = "<group>"; };
+		7C03435415A83944008ED1E5 /* XMPPSocketTransport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XMPPSocketTransport.h; sourceTree = "<group>"; };
+		7C03435515A83944008ED1E5 /* XMPPSocketTransport.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XMPPSocketTransport.m; sourceTree = "<group>"; };
+		7C03435B15A83AF8008ED1E5 /* RFSRVResolver.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RFSRVResolver.h; sourceTree = "<group>"; };
+		7C03435C15A83AF8008ED1E5 /* RFSRVResolver.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RFSRVResolver.m; sourceTree = "<group>"; };
+		7C03440F15A988C4008ED1E5 /* ConnectionBosh.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ConnectionBosh.h; sourceTree = "<group>"; };
+		7C03441015A988C4008ED1E5 /* ConnectionBosh.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ConnectionBosh.m; sourceTree = "<group>"; };
 		7CAFACFF15A5D04D00143A46 /* XMPPTransportProtocol.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XMPPTransportProtocol.h; sourceTree = "<group>"; };
 		7CAFAD0115A5D8F400143A46 /* ASIAuthenticationDialog.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ASIAuthenticationDialog.h; sourceTree = "<group>"; };
 		7CAFAD0215A5D8F400143A46 /* ASIAuthenticationDialog.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ASIAuthenticationDialog.m; sourceTree = "<group>"; };
@@ -467,6 +479,7 @@
 		080E96DDFE201D6D7F000001 /* Classes */ = {
 			isa = PBXGroup;
 			children = (
+				7C03434A15A83944008ED1E5 /* Transports */,
 				1D3623240D0F684500981E51 /* iPhoneXMPPAppDelegate.h */,
 				1D3623250D0F684500981E51 /* iPhoneXMPPAppDelegate.m */,
 				28C286DF0D94DF7D0034E888 /* RootViewController.h */,
@@ -539,15 +552,31 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		7CAFACF715A5CFE000143A46 /* Transports */ = {
+		7C03434A15A83944008ED1E5 /* Transports */ = {
 			isa = PBXGroup;
 			children = (
-				7CAFACF815A5CFE000143A46 /* BoshTransport.h */,
-				7CAFACF915A5CFE000143A46 /* BoshTransport.m */,
-				7CAFACFA15A5CFE000143A46 /* XMPPSocketTransport.h */,
-				7CAFACFB15A5CFE000143A46 /* XMPPSocketTransport.m */,
+				7C03434B15A83944008ED1E5 /* AsyncSocket */,
+				7C03435B15A83AF8008ED1E5 /* RFSRVResolver.h */,
+				7C03435C15A83AF8008ED1E5 /* RFSRVResolver.m */,
+				7C03434E15A83944008ED1E5 /* BoshTransport.h */,
+				7C03434F15A83944008ED1E5 /* BoshTransport.m */,
+				7C03435215A83944008ED1E5 /* XMPPBoshStream.h */,
+				7C03435315A83944008ED1E5 /* XMPPBoshStream.m */,
+				7C03435415A83944008ED1E5 /* XMPPSocketTransport.h */,
+				7C03435515A83944008ED1E5 /* XMPPSocketTransport.m */,
+				7C03440F15A988C4008ED1E5 /* ConnectionBosh.h */,
+				7C03441015A988C4008ED1E5 /* ConnectionBosh.m */,
 			);
 			path = Transports;
+			sourceTree = SOURCE_ROOT;
+		};
+		7C03434B15A83944008ED1E5 /* AsyncSocket */ = {
+			isa = PBXGroup;
+			children = (
+				7C03434C15A83944008ED1E5 /* AsyncSocket.h */,
+				7C03434D15A83944008ED1E5 /* AsyncSocket.m */,
+			);
+			path = AsyncSocket;
 			sourceTree = "<group>";
 		};
 		7CAFAD0015A5D8F400143A46 /* ASIHTTPRequest */ = {
@@ -673,7 +702,6 @@
 			isa = PBXGroup;
 			children = (
 				7CAFACFF15A5D04D00143A46 /* XMPPTransportProtocol.h */,
-				7CAFACF715A5CFE000143A46 /* Transports */,
 				DCF3C0CE1365C68300111BA3 /* XMPP.h */,
 				07AF16F7134A4E740084D82A /* XMPPInternal.h */,
 				DCC0BEF31301CE9100EC45D2 /* XMPPLogging.h */,
@@ -1058,8 +1086,6 @@
 				DC30E6CF153E09D2001B9E6D /* XMPPDigestMD5Authentication.m in Sources */,
 				DC30E6D0153E09D2001B9E6D /* XMPPPlainAuthentication.m in Sources */,
 				DC30E6D1153E09D2001B9E6D /* XMPPXFacebookPlatformAuthentication.m in Sources */,
-				7CAFACFC15A5CFE000143A46 /* BoshTransport.m in Sources */,
-				7CAFACFD15A5CFE000143A46 /* XMPPSocketTransport.m in Sources */,
 				7CAFAD1815A5D8F400143A46 /* ASIAuthenticationDialog.m in Sources */,
 				7CAFAD1915A5D8F400143A46 /* ASIDataCompressor.m in Sources */,
 				7CAFAD1A15A5D8F400143A46 /* ASIDataDecompressor.m in Sources */,
@@ -1069,6 +1095,12 @@
 				7CAFAD1E15A5D8F400143A46 /* ASIInputStream.m in Sources */,
 				7CAFAD1F15A5D8F400143A46 /* ASINetworkQueue.m in Sources */,
 				7CAFAD2015A5D8F400143A46 /* Reachability.m in Sources */,
+				7C03435615A83944008ED1E5 /* AsyncSocket.m in Sources */,
+				7C03435715A83944008ED1E5 /* BoshTransport.m in Sources */,
+				7C03435915A83944008ED1E5 /* XMPPBoshStream.m in Sources */,
+				7C03435A15A83944008ED1E5 /* XMPPSocketTransport.m in Sources */,
+				7C03435D15A83AF8008ED1E5 /* RFSRVResolver.m in Sources */,
+				7C03441115A988C4008ED1E5 /* ConnectionBosh.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

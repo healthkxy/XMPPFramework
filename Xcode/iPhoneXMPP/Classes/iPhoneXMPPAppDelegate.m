@@ -12,7 +12,7 @@
 #import "XMPPRosterCoreDataStorage.h"
 #import "XMPPvCardAvatarModule.h"
 #import "XMPPvCardCoreDataStorage.h"
-
+#import "XMPPBoshStream.h"
 #import "DDLog.h"
 #import "DDTTYLogger.h"
 
@@ -121,7 +121,7 @@
 
     [transport addDelegate:self];
     
-	xmppStream = [[XMPPStream alloc] initWithTransport:transport];
+	xmppStream = [[XMPPBoshStream alloc] initWithTransport:transport];
 	
 	#if !TARGET_IPHONE_SIMULATOR
 	{
@@ -135,7 +135,7 @@
 		//        If you do enableBackgroundingOnSocket on the simulator,
 		//        you will simply see an error message from the xmpp stack when it fails to set the property.
 		
-		xmppStream.enableBackgroundingOnSocket = YES;
+		//xmppStream.enableBackgroundingOnSocket = YES;
 	}
 	#endif
 	
@@ -145,7 +145,7 @@
 	// automatically reconnects the stream for you.
 	// There's a bunch more information in the XMPPReconnect header file.
 	
-	xmppReconnect = [[XMPPReconnect alloc] init];
+	//xmppReconnect = [[XMPPReconnect alloc] init];
 	
 	// Setup roster
 	// 
@@ -202,16 +202,16 @@
 
 	// Activate xmpp modules
 
-	[xmppReconnect         activate:xmppStream];
-	[xmppRoster            activate:xmppStream];
-	[xmppvCardTempModule   activate:xmppStream];
-	[xmppvCardAvatarModule activate:xmppStream];
-	[xmppCapabilities      activate:xmppStream];
+	//[xmppReconnect         activate:xmppStream];
+	//[xmppRoster            activate:xmppStream];
+	//[xmppvCardTempModule   activate:xmppStream];
+	//[xmppvCardAvatarModule activate:xmppStream];
+	//[xmppCapabilities      activate:xmppStream];
 
 	// Add ourself as a delegate to anything we may be interested in
 
 	[xmppStream addDelegate:self delegateQueue:dispatch_get_main_queue()];
-	[xmppRoster addDelegate:self delegateQueue:dispatch_get_main_queue()];
+	//[xmppRoster addDelegate:self delegateQueue:dispatch_get_main_queue()];
 
 	// Optional:
 	// 
@@ -300,7 +300,7 @@
 	// uncomment the section below to hard code a JID and password.
 	// 
 	myJID = @"iphoneforjapan@gmail.com/xmppframework";
-	myPassword = @"xykangxy78";
+	myPassword = @"xykangxh78";
 	
 	if (myJID == nil || myPassword == nil) {
 		return NO;
@@ -310,7 +310,7 @@
 	password = myPassword;
 
 	NSError *error = nil;
-	if (![xmppStream connectBosh:&error])
+	if (![xmppStream connect:&error])
 	{
 		UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"Error connecting" 
 		                                                    message:@"See console for error details." 
@@ -352,7 +352,8 @@
 	DDLogError(@"The iPhone simulator does not process background network traffic. "
 			   @"Inbound traffic is queued until the keepAliveTimeout:handler: fires.");
 	#endif
-
+    [self disconnect];
+    
 	if ([application respondsToSelector:@selector(setKeepAliveTimeout:handler:)]) 
 	{
 		[application setKeepAliveTimeout:600 handler:^{
@@ -448,7 +449,7 @@
 		
 		NSString *expectedCertName = nil;
 		
-		NSString *serverDomain = xmppStream.hostName;
+		NSString *serverDomain = nil;//xmppStream.hostName;
 		NSString *virtualDomain = [xmppStream.myJID domain];
 		
 		if ([serverDomain isEqualToString:@"talk.google.com"])
@@ -560,6 +561,7 @@
 - (void)xmppStream:(XMPPStream *)sender didReceiveError:(id)error
 {
 	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+    NSLog(@"%@",error);
 }
 
 - (void)xmppStreamDidDisconnect:(XMPPStream *)sender withError:(NSError *)error
@@ -618,5 +620,160 @@
 	}
 	
 }
+
+#pragma mark - xmppbosh
+- (void)xmppBoshStream:(XMPPBoshStream *)sender socketDidConnect:(GCDAsyncSocket *)socket 
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+}
+
+- (void)xmppBoshStream:(XMPPStream *)sender willSecureWithSettings:(NSMutableDictionary *)settings
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+	
+	if (allowSelfSignedCertificates)
+	{
+		[settings setObject:[NSNumber numberWithBool:YES] forKey:(NSString *)kCFStreamSSLAllowsAnyRoot];
+	}
+	
+	if (allowSSLHostNameMismatch)
+	{
+		[settings setObject:[NSNull null] forKey:(NSString *)kCFStreamSSLPeerName];
+	}
+	else
+	{
+		// Google does things incorrectly (does not conform to RFC).
+		// Because so many people ask questions about this (assume xmpp framework is broken),
+		// I've explicitly added code that shows how other xmpp clients "do the right thing"
+		// when connecting to a google server (gmail, or google apps for domains).
+		
+		NSString *expectedCertName = nil;
+		
+		NSString *serverDomain = nil;//xmppStream.hostName;
+		NSString *virtualDomain = [xmppStream.myJID domain];
+		
+		if ([serverDomain isEqualToString:@"talk.google.com"])
+		{
+			if ([virtualDomain isEqualToString:@"gmail.com"])
+			{
+				expectedCertName = virtualDomain;
+			}
+			else
+			{
+				expectedCertName = serverDomain;
+			}
+		}
+		else if (serverDomain == nil)
+		{
+			expectedCertName = virtualDomain;
+		}
+		else
+		{
+			expectedCertName = serverDomain;
+		}
+		
+		if (expectedCertName)
+		{
+			[settings setObject:expectedCertName forKey:(NSString *)kCFStreamSSLPeerName];
+		}
+	}
+}
+
+- (void)xmppBoshStreamDidSecure:(XMPPStream *)sender
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+}
+
+- (void)xmppBoshStreamDidConnect:(XMPPStream *)sender
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+	
+	isXmppConnected = YES;
+	
+	NSError *error = nil;
+	
+	if (![[self xmppStream] authenticateWithPassword:password error:&error])
+	{
+		DDLogError(@"Error authenticating: %@", error);
+	}
+}
+
+- (void)xmppBoshStreamDidAuthenticate:(XMPPStream *)sender
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+	
+	[self goOnline];
+}
+
+- (void)xmppBoshStream:(XMPPStream *)sender didNotAuthenticate:(NSXMLElement *)error
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+}
+
+- (BOOL)xmppBoshStream:(XMPPStream *)sender didReceiveIQ:(XMPPIQ *)iq
+{
+	DDLogVerbose(@"%@: %@ - %@", THIS_FILE, THIS_METHOD, [iq elementID]);
+	
+	return NO;
+}
+
+- (void)xmppBoshStream:(XMPPStream *)sender didReceiveMessage:(XMPPMessage *)message
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+    
+	// A simple example of inbound message handling.
+    
+	if ([message isChatMessageWithBody])
+	{
+		XMPPUserCoreDataStorageObject *user = [xmppRosterStorage userForJID:[message from]
+		                                                         xmppStream:xmppStream
+		                                               managedObjectContext:[self managedObjectContext_roster]];
+		
+		NSString *body = [[message elementForName:@"body"] stringValue];
+		NSString *displayName = [user displayName];
+        
+		if ([[UIApplication sharedApplication] applicationState] == UIApplicationStateActive)
+		{
+			UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:displayName
+                                                                message:body 
+                                                               delegate:nil 
+                                                      cancelButtonTitle:@"Ok" 
+                                                      otherButtonTitles:nil];
+			[alertView show];
+		}
+		else
+		{
+			// We are not active, so use a local notification instead
+			UILocalNotification *localNotification = [[UILocalNotification alloc] init];
+			localNotification.alertAction = @"Ok";
+			localNotification.alertBody = [NSString stringWithFormat:@"From: %@\n\n%@",displayName,body];
+            
+			[[UIApplication sharedApplication] presentLocalNotificationNow:localNotification];
+		}
+	}
+}
+
+- (void)xmppBoshStream:(XMPPStream *)sender didReceivePresence:(XMPPPresence *)presence
+{
+	DDLogVerbose(@"%@: %@ - %@", THIS_FILE, THIS_METHOD, [presence fromStr]);
+}
+
+- (void)xmppBoshStream:(XMPPStream *)sender didReceiveError:(id)error
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+    NSLog(@"%@",error);
+}
+
+- (void)xmppBoshStreamDidDisconnect:(XMPPStream *)sender withError:(NSError *)error
+{
+	DDLogVerbose(@"%@: %@", THIS_FILE, THIS_METHOD);
+	
+	if (!isXmppConnected)
+	{
+		DDLogError(@"Unable to connect to server. Check xmppStream.hostName");
+	}
+}
+
+
 
 @end
