@@ -340,7 +340,7 @@ static const NSString *XMPP_NS = @"urn:xmpp:xbosh";
         if( delegate != nil ) [multicastDelegate addDelegate:delegate];
 		
         sid_ = nil;
-        inactivity = 48 * 3600;
+        inactivity = 5*60;//48 * 3600;
         requests = 2;
         url_ = url;
 

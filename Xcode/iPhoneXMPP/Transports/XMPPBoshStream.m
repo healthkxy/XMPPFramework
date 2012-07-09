@@ -1457,7 +1457,7 @@ enum XMPPStreamFlags
 			{
                 dispatch_sync(dq, ^{ @autoreleasepool {
 					
-                    [delegate xmppBoshStream:self willSendIQ:iq];
+                    //[delegate xmppBoshStream:self willSendIQ:iq];
 					
 				}});
                 

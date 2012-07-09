@@ -15,6 +15,7 @@
 #import "XMPPBoshStream.h"
 #import "DDLog.h"
 #import "DDTTYLogger.h"
+#import "ConnectionBosh.h"
 
 #import <CFNetwork/CFNetwork.h>
 
@@ -42,6 +43,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 @implementation iPhoneXMPPAppDelegate
+{
+    ConnectionBosh *conn;
+}
 
 @synthesize xmppStream;
 @synthesize xmppReconnect;
@@ -118,6 +122,8 @@
 	transport = [[BoshTransport alloc] initWithUrl:
                     [NSURL URLWithString:@"http://www.24btc.com/http-bind"] 
                                          forDomain:@"gmail.com"];
+    conn = [[ConnectionBosh alloc]initWithBoshServer:@"http://www.24btc.com/http-bind" 
+                                       xmppHost:@"gmail.com"];
 
     [transport addDelegate:self];
     
@@ -310,7 +316,7 @@
 	password = myPassword;
 
 	NSError *error = nil;
-	if (![xmppStream connect:&error])
+	/*if (![xmppStream connect:&error])
 	{
 		UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"Error connecting" 
 		                                                    message:@"See console for error details." 
@@ -322,7 +328,17 @@
 		DDLogError(@"Error connecting: %@", error);
 
 		return NO;
-	}
+	}*/
+    
+    if (![conn isDisconnected]) {
+        return YES;
+    }
+    conn.myJID = [XMPPJID jidWithString:myJID];
+    conn.password = password;
+    [conn connect:&error];
+    if (error) {
+        DDLogError(@"Error connecting: %@", error);
+    }
 
 	return YES;
 }
