@@ -1044,7 +1044,7 @@ static const NSString *XMPP_NS = @"urn:xmpp:xbosh";
 
 - (void)disconnect
 {
-    if(state != CONNECTED_BOSH && state != CONNECTING_BOSH )
+    /*if(state != CONNECTED_BOSH && state != CONNECTING_BOSH )
     {
         //DDLogError(@"BOSH: Need to be connected to disconnect");
         return;
@@ -1052,7 +1052,9 @@ static const NSString *XMPP_NS = @"urn:xmpp:xbosh";
     //DDLogInfo(@"Bosh: Will Terminate Session");
     state = DISCONNECTING_BOSH;
     //[multicastDelegate transportWillDisconnect:self];
-    [self trySendingStanzas];
+    [self trySendingStanzas];*/
+    NSMutableDictionary *attr = [NSMutableDictionary dictionaryWithObjectsAndKeys: @"terminate", @"type", nil];
+    [self makeAndSendHTTPRequestWithPayload:nil attributes:attr namespaces:nil];
 }
 
 - (void)createSessionResponseHandler:(NSXMLElement *)parsedResponse

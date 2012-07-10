@@ -55,12 +55,26 @@
 
 - (void)viewWillDisappear:(BOOL)animated
 {
-	[[self appDelegate] disconnect];
-	[[[self appDelegate] xmppvCardTempModule] removeDelegate:self];
+	//[[self appDelegate] disconnect];
+	//[[[self appDelegate] xmppvCardTempModule] removeDelegate:self];
 	
 	[super viewWillDisappear:animated];
 }
 
+-(void)viewDidLoad
+{
+    [super viewDidLoad];
+    UIBarButtonItem *searchButton = [[UIBarButtonItem alloc]
+                                     initWithBarButtonSystemItem:UIBarButtonSystemItemSearch 
+                                     target:self action:@selector(disconnectAction:)];
+    self.navigationItem.rightBarButtonItem = searchButton;
+
+}
+
+-(void)disconnectAction:(id)sender
+{
+    [[self appDelegate] disconnect];
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark NSFetchedResultsController
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
