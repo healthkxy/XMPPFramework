@@ -503,7 +503,6 @@
 			isa = PBXGroup;
 			children = (
 				7CAFAD3D15A5DD6400143A46 /* MobileCoreServices.framework */,
-				7CAFAD3B15A5DD2500143A46 /* libz.dylib */,
 				DC1F98001152CAF300138A8F /* XMPP */,
 				080E96DDFE201D6D7F000001 /* Classes */,
 				29B97315FDCFA39411CA2CEA /* Other Sources */,
@@ -537,6 +536,7 @@
 		29B97323FDCFA39411CA2CEA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				7CAFAD3B15A5DD2500143A46 /* libz.dylib */,
 				1DF5F4DF0D08C38300B7A737 /* UIKit.framework */,
 				1D30AB110D05D00D00671497 /* Foundation.framework */,
 				2892E40F0DC94CBA00A64D0F /* CoreGraphics.framework */,
