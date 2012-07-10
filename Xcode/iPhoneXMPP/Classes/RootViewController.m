@@ -40,7 +40,7 @@
 	titleLabel.shadowColor = [UIColor colorWithWhite:0.0 alpha:0.5];
 	titleLabel.textAlignment = UITextAlignmentCenter;
 
-	if ([[self appDelegate] connect]) 
+	/*if ([[self appDelegate] connect]) 
 	{
 		titleLabel.text = [[[[self appDelegate] xmppStream] myJID] bare];
 	} else
@@ -50,7 +50,7 @@
 	
 	[titleLabel sizeToFit];
 
-	self.navigationItem.titleView = titleLabel;
+	self.navigationItem.titleView = titleLabel;*/
 }
 
 - (void)viewWillDisappear:(BOOL)animated
@@ -198,7 +198,8 @@
 
 - (IBAction)settings:(id)sender
 {
-	[self.navigationController presentModalViewController:[[self appDelegate] settingsViewController] animated:YES];
+	//[self.navigationController presentModalViewController:[[self appDelegate] settingsViewController] animated:YES];
+    [[self appDelegate] connect];
 }
 
 @end

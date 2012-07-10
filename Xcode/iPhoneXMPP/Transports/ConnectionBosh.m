@@ -147,10 +147,16 @@
 - (void)makeBodyAndSendHTTPRequestWithPayload:(NSArray *)bodyPayload 
                                    attributes:(NSMutableDictionary *)attributes 
                                    namespaces:(NSMutableDictionary *)namespaces;
+
+- (NSXMLElement *)makeAndSendHTTPRequestWithPayload:(NSArray *)bodyPayload 
+                                   attributes:(NSMutableDictionary *)attributes 
+                                   namespaces:(NSMutableDictionary *)namespaces;
+
 - (NSXMLElement *)newBodyElementWithPayload:(NSArray *)payload 
                                  attributes:(NSMutableDictionary *)attributes 
                                  namespaces:(NSMutableDictionary *)namespaces;
 - (void)sendHTTPRequestWithBody:(NSXMLElement *)body rid:(long long)rid;
+-(NSXMLElement*)sendHTTPRequestWithBody:(NSXMLElement *)body;
 - (NSArray *)newXMLNodeArrayFromDictionary:(NSDictionary *)dict 
                                     ofType:(XMLNodeTypeBosh)type;
 - (long long)generateRid;
@@ -158,9 +164,10 @@
 - (NSXMLElement *)newRootElement;
 -(void)transportDidConnect;
 - (BOOL)isConnected;
-- (void)broadcastStanzas:(NSXMLNode *)body;
--(void)transportDidReceiveStanza:(NSXMLElement *)node;
+- (NSXMLElement *)broadcastStanzas:(NSXMLNode *)body;
+-(NSXMLElement *)transportDidReceiveStanza:(NSXMLElement *)node;
 - (void)handleStreamFeatures;
+- (NSXMLElement *)handleStreamFeaturesAndReturn;
 - (void)handleStartTLSResponse:(NSXMLElement *)response;
 - (void)sendStartTLSRequest;
 - (BOOL)sendStanzaWithString:(NSString *)string;
@@ -169,8 +176,11 @@
 - (BOOL)supportsPlainAuthentication;
 - (void)restartStream;
 - (BOOL)authenticateWithPassword:(NSString *)password1 error:(NSError **)errPtr;
+- (NSXMLElement *)authenticateWithPassword:(NSString *)password1;
 - (void)sendElement:(NSXMLElement *)element;
 - (void)sendElement:(NSXMLElement *)element withTag:(long)tag;
+-(void)makeRootElement:(NSXMLElement *)element;
+- (NSXMLElement *)handleBindingAndReturn:(NSXMLElement *)response;
 @end
 
 @implementation ConnectionBosh
@@ -450,8 +460,116 @@ static const NSString *XMPP_NS = @"urn:xmpp:xbosh";
     return [self createSession:error];
 }
 
+-(void)makeRootElement:(NSXMLElement *)element
+{
+    while ([element childCount] > 0) {
+        NSXMLNode *node = [element childAtIndex:0];
+        if ([node isKindOfClass:[NSXMLElement class]]) {
+            [node detach];
+            [rootElement setChildren:[NSArray arrayWithObject:node]];
+            break;
+        }
+    }    
+}
+
+- (NSXMLElement *)handleStreamFeaturesAndReturn
+{
+	// Extract the stream features
+	NSXMLElement *features = [rootElement elementForName:@"stream:features"];
+	
+	// Check to see if TLS is required
+	// Don't forget about that NSXMLElement bug you reported to apple (xmlns is required or element won't be found)
+	NSXMLElement *f_starttls = [features elementForName:@"starttls" xmlns:@"urn:ietf:params:xml:ns:xmpp-tls"];
+	
+	if (f_starttls)
+	{
+		if ([f_starttls elementForName:@"required"])
+		{
+			// TLS is required for this connection
+			
+			// Update state
+			stream_state = STATE_STARTTLS;
+			
+			// Send the startTLS XML request
+			[self sendStartTLSRequest];
+			
+			// We do not mark the stream as secure yet.
+			// We're waiting to receive the <proceed/> response from the
+			// server before we actually start the TLS handshake.
+			
+			// We're already listening for the response...
+			return nil;
+		}
+	}
+	
+	// Check to see if resource binding is required
+	// Don't forget about that NSXMLElement bug you reported to apple (xmlns is required or element won't be found)
+	NSXMLElement *f_bind = [features elementForName:@"bind" xmlns:@"urn:ietf:params:xml:ns:xmpp-bind"];
+	
+	if (f_bind)
+	{
+		// Binding is required for this connection
+		stream_state = STATE_BINDING;
+		
+		NSString *requestedResource = [self.myJID resource];
+		
+		if ([requestedResource length] > 0)
+		{
+			// Ask the server to bind the user specified resource
+			
+			NSXMLElement *resource = [NSXMLElement elementWithName:@"resource"];
+			[resource setStringValue:requestedResource];
+			
+			NSXMLElement *bind = [NSXMLElement elementWithName:@"bind" xmlns:@"urn:ietf:params:xml:ns:xmpp-bind"];
+			[bind addChild:resource];
+			
+			NSXMLElement *iq = [NSXMLElement elementWithName:@"iq"];
+			[iq addAttributeWithName:@"type" stringValue:@"set"];
+			[iq addChild:bind];
+			
+            //[transport sendStanza:iq];
+            [pendingXMPPStanzas removeAllObjects];
+            [pendingXMPPStanzas addObject:iq];
+            return  [self makeAndSendHTTPRequestWithPayload:pendingXMPPStanzas attributes:nil namespaces:nil];
+
+		}
+		else
+		{
+			// The user didn't specify a resource, so we ask the server to bind one for us
+			
+			NSXMLElement *bind = [NSXMLElement elementWithName:@"bind" xmlns:@"urn:ietf:params:xml:ns:xmpp-bind"];
+			
+			NSXMLElement *iq = [NSXMLElement elementWithName:@"iq"];
+			[iq addAttributeWithName:@"type" stringValue:@"set"];
+			[iq addChild:bind];
+			
+            //[transport sendStanza:iq];
+            [pendingXMPPStanzas removeAllObjects];
+            [pendingXMPPStanzas addObject:iq];
+            return  [self makeAndSendHTTPRequestWithPayload:pendingXMPPStanzas attributes:nil namespaces:nil];
+		}
+		
+		// We're already listening for the response...
+		return nil;
+	}
+	
+	// It looks like all has gone well, and the connection should be ready to use now
+	//state = STATE_CONNECTED;
+	
+	//if (![self isAuthenticated])
+	{
+		// Notify delegates
+		//[multicastDelegate xmppStreamDidConnect:self];
+	}
+    return nil;
+}
+
+
 - (BOOL)createSession:(NSError **)error
 {
+    self.sid = nil;
+    nextRidToSend = [self generateRid];
+    
     NSMutableDictionary *attr = [NSMutableDictionary dictionaryWithCapacity:8];
     
     [attr setObject:CONTENT_TYPE forKey:@"content"];
@@ -472,9 +590,94 @@ static const NSString *XMPP_NS = @"urn:xmpp:xbosh";
     
     NSMutableDictionary *ns = [NSMutableDictionary dictionaryWithObjectsAndKeys: XMPP_NS, @"xmpp", nil];
     
-    [self makeBodyAndSendHTTPRequestWithPayload:nil attributes:attr namespaces:ns];
+    //NSData *responseData = nil;
+    NSXMLElement *parsedResponse = nil;
+    //[self makeBodyAndSendHTTPRequestWithPayload:nil attributes:attr namespaces:ns];
+    /*NSXMLElement *requestPayload = [self newBodyElementWithPayload:nil 
+                                                        attributes:attr 
+                                                        namespaces:ns];
+
+    parsedResponse = [self sendHTTPRequestWithBody:requestPayload];*/
+    parsedResponse = [self makeAndSendHTTPRequestWithPayload:nil attributes:attr namespaces:ns];
+    if (parsedResponse==nil) {
+        return NO;
+    }
     
+    NSArray *responseAttributes = [parsedResponse attributes];
+    rootElement = [self newRootElement];
+    
+    /* Setting inactivity, sid, wait, hold, lang, authid, secure, requests */
+    for(NSXMLNode *attr in responseAttributes)
+    {
+        NSString *attrName = [attr name];
+        NSString *attrValue = [attr stringValue];
+        SEL setter = [self setterForProperty:attrName];
+        
+        if([self respondsToSelector:setter]) 
+        {
+            [self performSelector:setter withObject:attrValue];
+        }
+    }
+    stream_state = STATE_NEGOTIATING;
+    [self broadcastStanzas:parsedResponse];
+    
+    [pendingXMPPStanzas removeAllObjects];
+    NSXMLElement *requestPayload = [self authenticateWithPassword:self.password];
+    [pendingXMPPStanzas addObject:requestPayload];
+    parsedResponse = [self makeAndSendHTTPRequestWithPayload:pendingXMPPStanzas attributes:nil namespaces:nil];
+    if (parsedResponse==nil) {
+        return NO;
+    }
+    DebugLog(@"%@",parsedResponse);
+    if(![[rootElement name] isEqualToString:@"success"]){
+        //return NO;
+    }
+    /////
+    attr = [NSMutableDictionary dictionaryWithObjectsAndKeys: @"true", @"xmpp:restart", nil];
+    ns = [NSMutableDictionary dictionaryWithObjectsAndKeys:XMPP_NS, @"xmpp", nil];
+    parsedResponse = [self makeAndSendHTTPRequestWithPayload:nil attributes:attr namespaces:ns];
+    if (parsedResponse==nil) {
+        return NO;
+    }
+    
+    /////////
+    stream_state = STATE_NEGOTIATING;
+    parsedResponse = [self broadcastStanzas:parsedResponse];
+    if (parsedResponse==nil) {
+        return NO;
+    }
+    DebugLog(@"%@",parsedResponse);
+
+    /*parsedResponse = [self broadcastStanzas:parsedResponse];
+    if (parsedResponse==nil) {
+        return NO;
+    }
+    DebugLog(@"%@",parsedResponse);*/
+
+    XMPPPresence *presence = [XMPPPresence presence]; // type="available" is implicit
+    //[self sendElement:presence];
+    [pendingXMPPStanzas removeAllObjects];
+    [pendingXMPPStanzas addObject:presence];
+    parsedResponse = [self makeAndSendHTTPRequestWithPayload:pendingXMPPStanzas attributes:nil namespaces:nil];
+    if (parsedResponse==nil) {
+        return NO;
+    }
+    DebugLog(@"%@",parsedResponse);
+
     return YES;
+}
+
+- (NSXMLElement *)makeAndSendHTTPRequestWithPayload:(NSArray *)bodyPayload 
+                                         attributes:(NSMutableDictionary *)attributes 
+                                         namespaces:(NSMutableDictionary *)namespaces
+{
+    NSXMLElement *requestPayload = [self newBodyElementWithPayload:bodyPayload 
+                                                        attributes:attributes 
+                                                        namespaces:namespaces];
+    NSXMLElement *parsedResponse = nil;
+    parsedResponse = [self sendHTTPRequestWithBody:requestPayload];
+    ++nextRidToSend;
+    return parsedResponse;
 }
 
 - (void)makeBodyAndSendHTTPRequestWithPayload:(NSArray *)bodyPayload 
@@ -532,6 +735,46 @@ static const NSString *XMPP_NS = @"urn:xmpp:xbosh";
     }
     
     return body;
+}
+
+-(NSXMLElement *)sendHTTPRequestWithBody:(NSXMLElement *)body
+{
+    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:self.url]];
+    [request setHTTPMethod:@"POST"];
+    [request setTimeoutInterval:(self.wait+4)];
+    if(body) 
+    {
+        [request setHTTPBody:[[body compactXMLString] dataUsingEncoding:NSUTF8StringEncoding]];
+    }
+    NSError *error = nil;
+    NSURLResponse* response;
+    NSData* result = [NSURLConnection sendSynchronousRequest:request returningResponse:&response error:&error];
+    if (error != nil) {
+        DebugLog(@"%@",error);
+        return nil;
+    }
+    //NSString *resultString = [[NSString alloc] initWithData:result
+                                                   //encoding:NSUTF8StringEncoding];
+    NSXMLElement *parsedResponse = [self parseXMLData:result error:&error];
+	
+    if (!parsedResponse || parsedResponse.kind != DDXMLElementKind || 
+        ![parsedResponse.name isEqualToString:@"body"]  || 
+        ![[parsedResponse namespaceStringValueForPrefix:@""] isEqualToString:BODY_NS])
+    {
+		if (parsedResponse != nil) {
+			//DDLogWarn(@"BOSH: Parse Failure: Unexpected XML in response: %@", parsedResponse);
+			//error = [NSError errorWithDomain:BOSHParsingErrorDomain
+			//							code:0
+			//						userInfo:nil];
+		} else {
+			//DDLogWarn(@"BOSH: Parse Failure: Cannot parse response string: %@", [request responseString]);
+		}
+		//DDLogWarn(@"BOSH: Parse Failure: Response headers: %@", [request responseHeaders]);
+		//[self processError:error forRequest:request];
+        return nil;
+    }
+
+    return parsedResponse;
 }
 
 - (void)sendHTTPRequestWithBody:(NSXMLElement *)body rid:(long long)rid
@@ -999,14 +1242,14 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
  We should ideally put all the request in the queue and call
  processRequestQueue with a timeOut.
  */ 
-- (void)broadcastStanzas:(NSXMLNode *)body
+- (NSXMLElement *)broadcastStanzas:(NSXMLNode *)body
 {
     while ([body childCount] > 0) {
         NSXMLNode *node = [body childAtIndex:0];
         if ([node isKindOfClass:[NSXMLElement class]]) {
             [node detach];
             //[multicastDelegate transport:self didReceiveStanza:(NSXMLElement *)node];
-            [self transportDidReceiveStanza:(NSXMLElement *)node];
+            return [self transportDidReceiveStanza:(NSXMLElement *)node];
         }
     }
 }
@@ -1055,7 +1298,7 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
 {
 	// The root element can be properly queried for authentication mechanisms anytime after the
 	//stream:features are received, and TLS has been setup (if required)
-	if (stream_state > STATE_STARTTLS)
+	//if (stream_state > STATE_STARTTLS)
 	{
 		NSXMLElement *features = [rootElement elementForName:@"stream:features"];
 		NSXMLElement *mech = [features elementForName:@"mechanisms" xmlns:@"urn:ietf:params:xml:ns:xmpp-sasl"];
@@ -1260,6 +1503,75 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
 	}
 }
 
+- (NSXMLElement *)handleBindingAndReturn:(NSXMLElement *)response
+{
+    NSXMLElement *r_bind = [response elementForName:@"bind" xmlns:@"urn:ietf:params:xml:ns:xmpp-bind"];
+	NSXMLElement *r_jid = [r_bind elementForName:@"jid"];
+	
+	if(r_jid)
+	{
+		// We're properly binded to a resource now
+		// Extract and save our resource (it may not be what we originally requested)
+		NSString *fullJIDStr = [r_jid stringValue];
+		
+		self.myJID = [XMPPJID jidWithString:fullJIDStr];
+		
+		// And we may now have to do one last thing before we're ready - start an IM session
+		NSXMLElement *features = [rootElement elementForName:@"stream:features"];
+		
+		// Check to see if a session is required
+		// Don't forget about that NSXMLElement bug you reported to apple (xmlns is required or element won't be found)
+		NSXMLElement *f_session = [features elementForName:@"session" xmlns:@"urn:ietf:params:xml:ns:xmpp-session"];
+		
+		if(f_session)
+		{
+			NSXMLElement *session = [NSXMLElement elementWithName:@"session"];
+			[session setXmlns:@"urn:ietf:params:xml:ns:xmpp-session"];
+			
+			NSXMLElement *iq = [NSXMLElement elementWithName:@"iq"];
+			[iq addAttributeWithName:@"type" stringValue:@"set"];
+			[iq addChild:session];
+			
+            //[self sendStanza:iq];
+            [pendingXMPPStanzas removeAllObjects];
+            [pendingXMPPStanzas addObject:iq];
+            return  [self makeAndSendHTTPRequestWithPayload:pendingXMPPStanzas attributes:nil namespaces:nil];
+
+		}
+		else
+		{
+			// Revert back to connected state (from binding state)
+			stream_state = STATE_CONNECTED;
+			
+			//[multicastDelegate xmppStreamDidAuthenticate:self];
+            XMPPPresence *presence = [XMPPPresence presence]; // type="available" is implicit
+            //[self sendElement:presence];
+            [pendingXMPPStanzas removeAllObjects];
+            [pendingXMPPStanzas addObject:presence];
+            return  [self makeAndSendHTTPRequestWithPayload:pendingXMPPStanzas attributes:nil namespaces:nil];
+
+		}
+	}
+	else
+	{
+		// It appears the server didn't allow our resource choice
+		// We'll simply let the server choose then
+		
+		NSXMLElement *bind = [NSXMLElement elementWithName:@"bind" xmlns:@"urn:ietf:params:xml:ns:xmpp-bind"];
+		
+		NSXMLElement *iq = [NSXMLElement elementWithName:@"iq"];
+		[iq addAttributeWithName:@"type" stringValue:@"set"];
+		[iq addChild:bind];
+		
+		//[self sendStanza:iq];
+        [pendingXMPPStanzas removeAllObjects];
+        [pendingXMPPStanzas addObject:iq];
+        return  [self makeAndSendHTTPRequestWithPayload:pendingXMPPStanzas attributes:nil namespaces:nil];
+
+		// The state remains in STATE_BINDING
+	}
+}
+
 - (void)handleBinding:(NSXMLElement *)response
 {
 	NSXMLElement *r_bind = [response elementForName:@"bind" xmlns:@"urn:ietf:params:xml:ns:xmpp-bind"];
@@ -1319,14 +1631,14 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
 	}
 }
 
--(void)transportDidReceiveStanza:(NSXMLElement *)node
+-(NSXMLElement *)transportDidReceiveStanza:(NSXMLElement *)node
 {
 	NSString *elementName = [node name];
     
 	if([elementName isEqualToString:@"stream:error"] || [elementName isEqualToString:@"error"])
 	{
 		//[multicastDelegate xmppBoshStream:self didReceiveError:element];
-		return;
+		return nil;
 	}
     
 	if(stream_state == STATE_NEGOTIATING)
@@ -1336,7 +1648,8 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
 		[rootElement setChildren:[NSArray arrayWithObject:node]];
 		
 		// Call a method to handle any requirements set forth in the features
-		[self handleStreamFeatures];
+		//[self handleStreamFeatures];
+        return [self handleStreamFeaturesAndReturn];
 	}
 	else if(stream_state == STATE_STARTTLS)
 	{
@@ -1366,7 +1679,8 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
 	else if(stream_state == STATE_BINDING)
 	{
 		// The response from our binding request
-		[self handleBinding:node];
+		//[self handleBinding:node];
+        return [self handleBindingAndReturn:node];
 	}
 	else if(stream_state == STATE_START_SESSION)
 	{
@@ -1453,6 +1767,7 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
 			//[multicastDelegate xmppBoshStream:self didReceiveError:element];
 		}
 	}    
+    return nil;
 }
 
 /**
@@ -1607,6 +1922,69 @@ kEnableBackgroundingOnSocket  = 1 << 2,  // If set, the VoIP flag should be set 
 	return [[self class] generateUUID];
 }
 
+- (NSXMLElement *)authenticateWithPassword:(NSString *)password1
+{
+    if ([self supportsDigestMD5Authentication])
+	{
+		NSString *auth = @"<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' mechanism='DIGEST-MD5'/>";
+        [self sendStanzaWithString:auth];
+        NSXMLElement *payload = [self parseXMLString:auth];
+        return payload;
+		tempPassword = password1;
+	}
+	else if ([self supportsPlainAuthentication])
+	{
+		NSString *username = [self.myJID user];
+		
+		NSString *payload = [NSString stringWithFormat:@"%C%@%C%@", 0, username, 0, password1];
+		NSString *base64 = [[payload dataUsingEncoding:NSUTF8StringEncoding] base64Encoded];
+		
+		NSXMLElement *auth = [NSXMLElement elementWithName:@"auth" xmlns:@"urn:ietf:params:xml:ns:xmpp-sasl"];
+		[auth addAttributeWithName:@"mechanism" stringValue:@"PLAIN"];
+		[auth setStringValue:base64];
+        return auth;
+	}
+	else
+	{
+		// The server does not appear to support SASL authentication (at least any type we can use)
+		// So we'll revert back to the old fashioned jabber:iq:auth mechanism
+		
+		NSString *username = [self.myJID user];
+		NSString *resource = [self.myJID resource];
+		
+		if ([resource length] == 0)
+		{
+			// If resource is nil or empty, we need to auto-create one
+			
+			resource = [self generateUUID];
+		}
+		
+		NSXMLElement *queryElement = [NSXMLElement elementWithName:@"query" xmlns:@"jabber:iq:auth"];
+		[queryElement addChild:[NSXMLElement elementWithName:@"username" stringValue:username]];
+		[queryElement addChild:[NSXMLElement elementWithName:@"resource" stringValue:resource]];
+		
+		/*if ([self supportsDeprecatedDigestAuthentication])
+         {
+         NSString *rootID = [[[self rootElement] attributeForName:@"id"] stringValue];
+         NSString *digestStr = [NSString stringWithFormat:@"%@%@", rootID, password];
+         NSData *digestData = [digestStr dataUsingEncoding:NSUTF8StringEncoding];
+         
+         NSString *digest = [[digestData sha1Digest] hexStringValue];
+         
+         [queryElement addChild:[NSXMLElement elementWithName:@"digest" stringValue:digest]];
+         }
+         else
+         {
+         [queryElement addChild:[NSXMLElement elementWithName:@"password" stringValue:password]];
+         }*/
+		
+		NSXMLElement *iqElement = [NSXMLElement elementWithName:@"iq"];
+		[iqElement addAttributeWithName:@"type" stringValue:@"set"];
+		[iqElement addChild:queryElement];
+        return iqElement;
+	}
+    return nil;
+}
 /**
  * This method attempts to sign-in to the server using the configured myJID and given password.
  * If this method immediately fails
